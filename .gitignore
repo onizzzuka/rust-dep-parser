@@ -1,0 +1,5 @@
+.ddev
+.idea
+output
+vendor
+composer.json
