@@ -28,4 +28,5 @@ if ($packages !== []) {
     $file = fopen(__DIR__ . "/output/packages.txt", 'wb');
 
     fwrite($file, $packages_text);
+    fclose($file);
 }
