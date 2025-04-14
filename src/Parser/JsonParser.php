@@ -2,8 +2,6 @@
 
 namespace App\Parser;
 
-use App\PackageItem;
-
 class JsonParser extends ArrayParser {
 
     public static function getItems(array $array): array {
