@@ -15,10 +15,11 @@ $packages = array_merge(
 
 if ($packages !== []) {
     if (!mkdir('output') && !is_dir('output')) {
-        throw new \RuntimeException(sprintf('Directory "%s" was not created', 'output'));
+        throw new RuntimeException(sprintf('Directory "%s" was not created', 'output'));
     }
 
     ksort($packages);
+
     $packages_text = "CRATES=\"\n";
     foreach ($packages as $package_name => $package_version) {
         $packages_text .= "\t" . $package_name . "@" . $package_version . "\n";
@@ -26,7 +27,6 @@ if ($packages !== []) {
     $packages_text .= "\"";
 
     $file = fopen(__DIR__ . "/output/packages.txt", 'wb');
-
     fwrite($file, $packages_text);
     fclose($file);
 }
