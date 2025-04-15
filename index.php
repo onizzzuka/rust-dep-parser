@@ -6,27 +6,68 @@ use App\Parser\LockParser;
 use App\Parser\TomlParser;
 use Yosymfony\Toml\Toml;
 
-$packages = array_merge(
-    TomlParser::getItems(Toml::parseFile(__DIR__ . "/files_for_parse/Cargo.toml")),
-    LockParser::getItems(Toml::parseFile(__DIR__ . "/files_for_parse/Cargo.lock")),
-    JsonParser::getItems(json_decode(file_get_contents(__DIR__ . "/files_for_parse/cargo-sources.json"), TRUE, 512, JSON_THROW_ON_ERROR)),
-    JsonParser::getItems(json_decode(file_get_contents(__DIR__ . "/files_for_parse/cargo-sources-gatherer.json"), TRUE, 512, JSON_THROW_ON_ERROR)),
-);
+const FILES_FOR_PARSE_DIR = __DIR__ . "/files_for_parse";
+const OUTPUT_DIR          = __DIR__ . "/output";
+const OUTPUT_FILE         = "packages.txt";
 
-if ($packages !== []) {
-    if (!mkdir('output') && !is_dir('output')) {
-        throw new RuntimeException(sprintf('Directory "%s" was not created', 'output'));
+try {
+    processFiles([
+        FILES_FOR_PARSE_DIR . "/Cargo.toml"                  => new TomlParser(),
+        FILES_FOR_PARSE_DIR . "/Cargo.lock"                  => new LockParser(),
+        FILES_FOR_PARSE_DIR . "/cargo-sources.json"          => new JsonParser(),
+        FILES_FOR_PARSE_DIR . "/cargo-sources-gatherer.json" => new JsonParser(),
+    ]);
+}
+catch (RuntimeException $e) {
+    handleError($e);
+}
+
+function processFiles(array $files): void {
+    $packages = readAndParseFiles($files);
+
+    if (!empty($packages)) {
+        createOutputDirectory();
+        $packages_text = generatePackagesText($packages);
+        file_put_contents(OUTPUT_DIR . "/" . OUTPUT_FILE, $packages_text);
+    }
+}
+
+function handleError(Exception $e): void {
+    echo "Error: " . $e->getMessage() . "\n";
+}
+
+function createOutputDirectory(): void {
+    if (!is_dir(OUTPUT_DIR) && !mkdir(OUTPUT_DIR) && !is_dir(OUTPUT_DIR)) {
+        throw new RuntimeException(sprintf('Directory "%s" was not created', OUTPUT_DIR));
+    }
+}
+
+function readAndParseFiles(array $files): array {
+    $parsed_items = [];
+    foreach ($files as $filePath => $parser) {
+        if (!file_exists($filePath)) {
+            throw new RuntimeException("File not found: $filePath");
+        }
+
+        try {
+            $parsed_items[] = $parser::getItems(
+                ($parser instanceof TomlParser || $parser instanceof LockParser)
+                    ? Toml::parseFile($filePath)
+                    : json_decode(file_get_contents($filePath), TRUE, 512, JSON_THROW_ON_ERROR)
+            );
+        }
+        catch (JsonException $e) {
+            handleError(e: $e);
+        }
+
     }
 
+    return array_merge(...$parsed_items);
+}
+
+function generatePackagesText(array $packages): string {
     ksort($packages);
+    $packages_lines = array_map(static fn($name, $version) => "\t$name@$version", array_keys($packages), $packages);
 
-    $packages_text = "CRATES=\"\n";
-    foreach ($packages as $package_name => $package_version) {
-        $packages_text .= "\t" . $package_name . "@" . $package_version . "\n";
-    }
-    $packages_text .= "\"";
-
-    $file = fopen(__DIR__ . "/output/packages.txt", 'wb');
-    fwrite($file, $packages_text);
-    fclose($file);
+    return 'CRATES="' . implode("\n", $packages_lines) . "\n\"";
 }
