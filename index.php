@@ -11,15 +11,38 @@ const OUTPUT_DIR          = __DIR__ . "/output";
 const OUTPUT_FILE         = "packages.txt";
 
 try {
-    processFiles([
-        FILES_FOR_PARSE_DIR . "/Cargo.toml"                  => new TomlParser(),
-        FILES_FOR_PARSE_DIR . "/Cargo.lock"                  => new LockParser(),
-        FILES_FOR_PARSE_DIR . "/cargo-sources.json"          => new JsonParser(),
-        FILES_FOR_PARSE_DIR . "/cargo-sources-gatherer.json" => new JsonParser(),
-    ]);
+    processFiles(getFilesWithParsers(FILES_FOR_PARSE_DIR));
 }
 catch (RuntimeException $e) {
     handleError($e);
+}
+
+function getFilesWithParsers(string $directory): array {
+    $files = scandir($directory);
+    $fileParsers = [];
+
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') {
+            continue;
+        }
+
+        $extension = pathinfo($file, PATHINFO_EXTENSION);
+        $parser = getParserByExtension($extension);
+        if ($parser !== null) {
+            $fileParsers[$directory . '/' . $file] = new $parser();
+        }
+    }
+
+    return $fileParsers;
+}
+
+function getParserByExtension(string $extension): string|null {
+    return match ($extension) {
+        'toml' => TomlParser::class,
+        'lock' => LockParser::class,
+        'json' => JsonParser::class,
+        default => NULL,
+    };
 }
 
 function processFiles(array $files): void {
