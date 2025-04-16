@@ -1,10 +1,7 @@
 <?php
 require __DIR__ . '/vendor/autoload.php';
 
-use App\Parser\JsonParser;
-use App\Parser\LockParser;
-use App\Parser\TomlParser;
-use Yosymfony\Toml\Toml;
+use App\Parser\ParserFactory;
 
 const FILES_FOR_PARSE_DIR = __DIR__ . "/files_for_parse";
 const OUTPUT_DIR          = __DIR__ . "/output";
@@ -17,32 +14,6 @@ catch (RuntimeException $e) {
     handleError($e);
 }
 
-function getFilesWithParsers(string $directory): array {
-    $files       = array_filter(scandir($directory), fn($file) => $file !== '.' && $file !== '..');
-    $fileParsers = [];
-
-    foreach ($files as $filename) {
-        $extension   = pathinfo($filename, PATHINFO_EXTENSION);
-        $parserClass = getParserByExtension($extension);
-
-        if ($parserClass !== NULL) {
-            $fullPath               = $directory . '/' . $filename;
-            $fileParsers[$fullPath] = new $parserClass();
-        }
-    }
-
-    return $fileParsers;
-}
-
-function getParserByExtension(string $extension): string|null {
-    return match ($extension) {
-        'toml' => TomlParser::class,
-        'lock' => LockParser::class,
-        'json' => JsonParser::class,
-        default => NULL,
-    };
-}
-
 function processFiles(array $files): void {
     $packages = readAndParseFiles($files);
 
@@ -51,6 +22,23 @@ function processFiles(array $files): void {
         $packages_text = generatePackagesText($packages);
         file_put_contents(OUTPUT_DIR . "/" . OUTPUT_FILE, $packages_text);
     }
+}
+
+function getFilesWithParsers(string $directory): array {
+    $files       = array_filter(scandir($directory), static fn($file) => $file !== '.' && $file !== '..');
+    $fileParsers = [];
+
+    foreach ($files as $filename) {
+        $extension   = pathinfo($filename, PATHINFO_EXTENSION);
+        $parserClass = ParserFactory::createByExtension($extension);
+
+        if ($parserClass !== NULL) {
+            $fullPath               = $directory . '/' . $filename;
+            $fileParsers[$fullPath] = new $parserClass();
+        }
+    }
+
+    return $fileParsers;
 }
 
 function handleError(Exception $e): void {
@@ -71,11 +59,9 @@ function readAndParseFiles(array $files): array {
         }
 
         try {
-            $parsed_items[] = $parser::getItems(
-                ($parser instanceof TomlParser || $parser instanceof LockParser)
-                    ? Toml::parseFile($filePath)
-                    : json_decode(file_get_contents($filePath), TRUE, 512, JSON_THROW_ON_ERROR)
-            );
+            $content        = file_get_contents($filePath);
+            $data           = $parser->parse($content);
+            $parsed_items[] = $parser::getItems($data);
         }
         catch (JsonException $e) {
             handleError(e: $e);

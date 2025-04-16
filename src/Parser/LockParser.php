@@ -2,15 +2,21 @@
 
 namespace App\Parser;
 
+use Yosymfony\Toml\Toml;
+
 class LockParser extends ArrayParser {
 
-    public static function getItems(array $array): array {
+    public static function getItems(array $data): array {
         $result = [];
 
-        foreach ($array['package'] as $package) {
+        foreach ($data['package'] as $package) {
             $result[$package['name']] = $package['version'];
         }
 
         return $result;
+    }
+
+    public function parse(string $content): array {
+        return Toml::parse($content);
     }
 }
