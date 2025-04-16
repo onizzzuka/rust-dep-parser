@@ -18,18 +18,16 @@ catch (RuntimeException $e) {
 }
 
 function getFilesWithParsers(string $directory): array {
-    $files = scandir($directory);
+    $files       = array_filter(scandir($directory), fn($file) => $file !== '.' && $file !== '..');
     $fileParsers = [];
 
-    foreach ($files as $file) {
-        if ($file === '.' || $file === '..') {
-            continue;
-        }
+    foreach ($files as $filename) {
+        $extension   = pathinfo($filename, PATHINFO_EXTENSION);
+        $parserClass = getParserByExtension($extension);
 
-        $extension = pathinfo($file, PATHINFO_EXTENSION);
-        $parser = getParserByExtension($extension);
-        if ($parser !== null) {
-            $fileParsers[$directory . '/' . $file] = new $parser();
+        if ($parserClass !== NULL) {
+            $fullPath               = $directory . '/' . $filename;
+            $fileParsers[$fullPath] = new $parserClass();
         }
     }
 
