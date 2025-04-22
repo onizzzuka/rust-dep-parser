@@ -19,8 +19,8 @@ function processFiles(array $files): void {
 
     if (!empty($packages)) {
         createOutputDirectory();
-        $packages_text = generatePackagesText($packages);
-        file_put_contents(OUTPUT_DIR . "/" . OUTPUT_FILE, $packages_text);
+        $packagesText = generatePackagesText($packages);
+        file_put_contents(OUTPUT_DIR . "/" . OUTPUT_FILE, $packagesText);
     }
 }
 
@@ -52,7 +52,7 @@ function createOutputDirectory(): void {
 }
 
 function readAndParseFiles(array $files): array {
-    $parsed_items = [];
+    $parsedItems = [];
     foreach ($files as $filePath => $parser) {
         if (!file_exists($filePath)) {
             throw new RuntimeException("File not found: $filePath");
@@ -61,7 +61,7 @@ function readAndParseFiles(array $files): array {
         try {
             $content        = file_get_contents($filePath);
             $data           = $parser->parse($content);
-            $parsed_items[] = $parser::getItems($data);
+            $parsedItems[] = $parser::getItems($data);
         }
         catch (JsonException $e) {
             handleError(e: $e);
@@ -69,12 +69,12 @@ function readAndParseFiles(array $files): array {
 
     }
 
-    return array_merge(...$parsed_items);
+    return array_merge(...$parsedItems);
 }
 
 function generatePackagesText(array $packages): string {
     ksort($packages);
-    $packages_lines = array_map(static fn($name, $version) => "\t$name@$version", array_keys($packages), $packages);
+    $packagesLines = array_map(static fn($name, $version) => "\t$name@$version", array_keys($packages), $packages);
 
-    return 'CRATES="' . implode("\n", $packages_lines) . "\n\"";
+    return 'CRATES="' . implode("\n", $packagesLines) . "\n\"";
 }
