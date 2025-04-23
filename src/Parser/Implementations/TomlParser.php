@@ -4,7 +4,7 @@ namespace App\Parser\Implementations;
 
 use Yosymfony\Toml\Toml;
 
-class TomlParser extends ArrayParser {
+class TomlParser extends AbstractParser {
 
     public static function getItems(array $data): array {
 

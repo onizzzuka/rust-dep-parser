@@ -4,7 +4,7 @@ namespace App\Parser\Implementations;
 
 use App\Parser\ParserInterface;
 
-abstract class ArrayParser implements ParserInterface {
+abstract class AbstractParser implements ParserInterface {
 
     abstract public static function getItems(array $data): array;
 

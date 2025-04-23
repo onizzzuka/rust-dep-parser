@@ -2,7 +2,7 @@
 
 namespace App\Parser\Implementations;
 
-class JsonParser extends ArrayParser {
+class JsonParser extends AbstractParser {
 
     public static function getItems(array $data): array {
         $result = [];
