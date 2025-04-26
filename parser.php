@@ -28,10 +28,11 @@ class Parser {
     }
 
     private function findFilesWithParsers(): array {
-        $files       = array_filter(
+        $files = array_filter(
             scandir(FILES_FOR_PARSE_DIR),
             static fn($file) => $file !== '.' && $file !== '..'
         );
+
         $fileParsers = [];
 
         foreach ($files as $filename) {
