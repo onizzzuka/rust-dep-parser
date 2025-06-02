@@ -36,7 +36,7 @@ class Parser {
             $parserClass = ParserFactory::createByExtension($extension);
 
             if ($parserClass !== NULL) {
-                $fullPath               = FILES_FOR_PARSE_DIR . '/' . $filename;
+                $fullPath               = $directory . '/' . $filename;
                 $fileParsers[$fullPath] = new $parserClass();
             }
         }
