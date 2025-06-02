@@ -6,7 +6,7 @@ use Yosymfony\Toml\Toml;
 
 class LockParser extends AbstractParser {
 
-    public static function getItems(array $data): array {
+    public function getItems(array $data): array {
         $result = [];
 
         foreach ($data['package'] as $package) {

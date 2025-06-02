@@ -4,7 +4,7 @@ namespace App\Parser\Implementations;
 
 class JsonParser extends AbstractParser {
 
-    public static function getItems(array $data): array {
+    public function getItems(array $data): array {
         $result = [];
 
         $data = array_filter($data, static fn($item) => $item['type'] !== "inline");

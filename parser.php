@@ -68,7 +68,7 @@ class Parser {
             try {
                 $content = file_get_contents($filePath);
                 $data    = $parser->parse($content);
-                $items   = $parser::getItems($data);
+                $items   = $parser->getItems($data);
                 if (is_array($items)) {
                     $parsedItems[] = $items;
                 }
