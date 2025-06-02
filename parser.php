@@ -28,14 +28,10 @@ class Parser {
     }
 
     private function findFilesWithParsers(): array {
-        $files = array_filter(
-            scandir(FILES_FOR_PARSE_DIR),
-            static fn($file) => $file !== '.' && $file !== '..'
-        );
-
+        $directory   = FILES_FOR_PARSE_DIR;
         $fileParsers = [];
 
-        foreach ($files as $filename) {
+        foreach ($this->getPArseableFiles($directory) as $filename) {
             $extension   = pathinfo($filename, PATHINFO_EXTENSION);
             $parserClass = ParserFactory::createByExtension($extension);
 
@@ -46,6 +42,17 @@ class Parser {
         }
 
         return $fileParsers;
+    }
+
+    private function getPArseableFiles(string $directory): array {
+        $entries = scandir($directory) ?: [];
+
+        return array_values(
+            array_filter(
+                $entries,
+                static fn($entry): bool => $entry !== '.' && $entry !== '..'
+            )
+        );
     }
 
     private function processFiles(array $fileParsers): void {
