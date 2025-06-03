@@ -31,7 +31,7 @@ class Parser {
         $directory   = FILES_FOR_PARSE_DIR;
         $fileParsers = [];
 
-        foreach ($this->getPArseableFiles($directory) as $filename) {
+        foreach ($this->getParseableFiles($directory) as $filename) {
             $extension   = pathinfo($filename, PATHINFO_EXTENSION);
             $parserClass = ParserFactory::createByExtension($extension);
 
@@ -44,7 +44,7 @@ class Parser {
         return $fileParsers;
     }
 
-    private function getPArseableFiles(string $directory): array {
+    private function getParseableFiles(string $directory): array {
         $entries = scandir($directory) ?: [];
 
         return array_values(
