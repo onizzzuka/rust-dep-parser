@@ -2,10 +2,12 @@
 
 namespace App\Parser\Implementations;
 
+use Override;
 use Yosymfony\Toml\Toml;
 
 class LockParser extends AbstractParser {
 
+    #[Override]
     public function getItems(array $data): array {
         $result = [];
 
@@ -16,6 +18,7 @@ class LockParser extends AbstractParser {
         return $result;
     }
 
+    #[Override]
     public function parse(string $content): array {
         return Toml::parse($content);
     }

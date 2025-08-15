@@ -2,8 +2,12 @@
 
 namespace App\Parser\Implementations;
 
+use JsonException;
+use Override;
+
 class JsonParser extends AbstractParser {
 
+    #[Override]
     public function getItems(array $data): array {
         $result = [];
 
@@ -19,7 +23,14 @@ class JsonParser extends AbstractParser {
         return $result;
     }
 
+    #[Override]
     public function parse(string $content): array {
-        return json_decode($content, TRUE, 512, JSON_THROW_ON_ERROR);
+        try {
+            return json_decode($content, TRUE, 512, JSON_THROW_ON_ERROR);
+        }
+        catch (JsonException $e) {
+            echo "Json parse error: " . $e->getMessage();
+            return [];
+        }
     }
 }
