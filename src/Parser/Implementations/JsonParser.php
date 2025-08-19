@@ -7,6 +7,16 @@ use Override;
 
 class JsonParser extends AbstractParser {
 
+    /**
+     * Filters and extracts specific components from the input data.
+     *
+     * @param array $data An array of data items where each item is expected to have a 'type' and 'dest' key.
+     *                    The 'type' key is used to filter out items of type "inline".
+     *                    The 'dest' key is processed to extract specific structured information.
+     *
+     * @return array Returns an associative array where the keys are extracted components,
+     *               and the corresponding values are derived from the 'dest' data of filtered items.
+     */
     #[Override]
     public function getItems(array $data): array {
         $result = [];
@@ -23,6 +33,14 @@ class JsonParser extends AbstractParser {
         return $result;
     }
 
+    /**
+     * Parses a JSON-encoded string into an associative array.
+     *
+     * @param string $content A JSON-encoded string to be decoded.
+     *
+     * @return array Returns an associative array derived from the decoded JSON string.
+     *               If decoding fails, an empty array is returned.
+     */
     #[Override]
     public function parse(string $content): array {
         try {
