@@ -8,9 +8,15 @@ const FILES_FOR_PARSE_DIR = __DIR__ . "/files_for_parse";
 const OUTPUT_DIR          = __DIR__ . "/output";
 const OUTPUT_FILE         = "packages.txt";
 
+const ALLOWED_FILE_EXTENSIONS = ['json', 'toml', 'lock'];
+
 Parser::run();
 
 class Parser {
+
+    private array $parsersPool = [];
+
+    private array $filesToProceedPool = [];
 
     public static function run(): void {
         $parser = new self();
@@ -25,8 +31,8 @@ class Parser {
      */
     private function process(): void {
         try {
-            $fileParsers = $this->findFilesWithParsers();
-            $this->processFiles($fileParsers);
+            $this->prepareFilesAndParsers();
+            $this->processFiles();
         }
         catch (RuntimeException $e) {
             $this->handleError($e);
@@ -34,28 +40,51 @@ class Parser {
     }
 
     /**
-     * Finds and returns a list of files along with their associated parsers.
+     * Fill a list of files and the parsers pool.
      * The method scans a specified directory for parseable files,
      * determines the appropriate parser for each file based on its extension,
-     * and maps the file paths to their respective parser instances.
-     *
-     * @return array An associative array where the keys are file paths and the values are parser instances.
+     * and add a new instance of parser to the pool.
      */
-    private function findFilesWithParsers(): array {
-        $directory   = FILES_FOR_PARSE_DIR;
-        $fileParsers = [];
+    private function prepareFilesAndParsers(): void {
+        $directory = FILES_FOR_PARSE_DIR;
 
         foreach ($this->getParseableFiles($directory) as $filename) {
-            $extension   = pathinfo($filename, PATHINFO_EXTENSION);
-            $parserClass = ParserFactory::createByExtension($extension);
+            $extension = pathinfo($filename, PATHINFO_EXTENSION);
 
-            if ($parserClass !== NULL) {
-                $fullPath               = $directory . '/' . $filename;
-                $fileParsers[$fullPath] = new $parserClass();
-            }
+            $this->addParserToPool($extension);
+            $this->addFileToProceedPool($directory, $filename, $extension);
+        }
+    }
+
+    /**
+     * Adds a parser instance to the internal pool for the specified file extension.
+     *
+     * If no parser is currently stored for the given extension and the extension
+     * is listed in {@see ALLOWED_FILE_EXTENSIONS}, a new parser is created via
+     * {@see ParserFactory::createByExtension} and added to the pool.
+     *
+     * @param string $extension The file extension for which to add a parser.
+     *
+     * @return void
+     */
+    private function addParserToPool(string $extension): void {
+        if (!isset($this->parsersPool[$extension]) && in_array(strtolower($extension), ALLOWED_FILE_EXTENSIONS)) {
+            $this->parsersPool[$extension] = ParserFactory::createByExtension($extension);
+        }
+    }
+
+    /**
+     * Adds a file to the internal pool of files to be processed based on {@see ALLOWED_FILE_EXTENSIONS}.
+     *
+     * @param string $directory The directory path where the file resides.
+     * @param string $filename  The name of the file to add.
+     * @param string $extension The file extension, used for validation against allowed extensions.
+     */
+    private function addFileToProceedPool(string $directory, string $filename, string $extension): void {
+        if (in_array(strtolower($extension), ALLOWED_FILE_EXTENSIONS)) {
+            $this->filesToProceedPool[] = $directory . '/' . $filename;
         }
 
-        return $fileParsers;
     }
 
     /**
@@ -63,7 +92,8 @@ class Parser {
      *
      * @param string $directory The path to the directory to scan.
      *
-     * @return array An array of filenames contained in the directory, excluding '.' and '..'.
+     * @return array An array of filenames contained in the directory,
+     *               excluding '.' and '..'.
      */
     private function getParseableFiles(string $directory): array {
         $entries = scandir($directory) ?: [];
@@ -77,14 +107,13 @@ class Parser {
     }
 
     /**
-     * Processes an array of file parsers to parse files, format package data, and save the output to a file.
-     *
-     * @param array $fileParsers An array of file parsers used to process the files.
+     * Processes an array of file parsers to parse files, format package data,
+     * and save the output to a file.
      *
      * @return void
      */
-    private function processFiles(array $fileParsers): void {
-        $packages = $this->parseFiles($fileParsers);
+    private function processFiles(): void {
+        $packages = $this->parseFiles();
         if (!empty($packages)) {
             $this->ensureOutputDirectory();
             $packagesText = $this->formatPackagesText($packages);
@@ -93,24 +122,30 @@ class Parser {
     }
 
     /**
-     * Parses files using the provided file parsers and extracts items from their contents.
+     * Parses files using the provided file parsers and extracts items from
+     * their contents.
      *
-     * @param array $fileParsers An associative array where the keys are file paths and the values are parser instances. Each parser must implement methods to parse file content and extract items.
-     *
-     * @return array A merged array of items extracted from the parsed files. Returns an empty array if no valid items are extracted or no files are successfully parsed.
+     * @return array A merged array of items extracted from the parsed files.
+     *               Returns an empty array if no valid items are extracted or
+     *               no files are successfully parsed.
      */
-    private function parseFiles(array $fileParsers): array {
+    private function parseFiles(): array {
         $parsedItems = [];
-        foreach ($fileParsers as $filePath => $parser) {
-            if (!file_exists($filePath)) {
-                $this->handleError(new RuntimeException("File not found: $filePath"));
+        foreach ($this->filesToProceedPool as $file) {
+            if (!file_exists($file)) {
+                $this->handleError(new RuntimeException("File not found: $file"));
                 continue;
             }
 
             try {
-                $content = file_get_contents($filePath);
-                $data    = $parser->parse($content);
-                $items   = $parser->getItems($data);
+                $content = file_get_contents($file);
+
+                $extension = pathinfo($file, PATHINFO_EXTENSION);
+                $parser    = $this->parsersPool[$extension];
+
+                $data  = $parser->parse($content);
+                $items = $parser->getItems($data);
+
                 if (is_array($items)) {
                     $parsedItems[] = $items;
                 }
@@ -120,7 +155,7 @@ class Parser {
             }
         }
 
-        return array_merge(...$parsedItems);
+        return empty($parsedItems) ? [] : array_merge(...$parsedItems);
     }
 
     /**
@@ -136,11 +171,14 @@ class Parser {
     }
 
     /**
-     * Formats an array of package names and versions into a specific text structure.
+     * Formats an array of package names and versions into a specific text
+     * structure.
      *
-     * @param array $packages An associative array where keys are package names and values are their versions.
+     * @param array $packages An associative array where keys are package names
+     *                        and values are their versions.
      *
-     * @return string A formatted string containing the packages and versions, each on a new line, prefixed with a tab character.
+     * @return string A formatted string containing the packages and versions,
+     *                each on a new line, prefixed with a tab character.
      */
     private function formatPackagesText(array $packages): string {
         ksort($packages);
