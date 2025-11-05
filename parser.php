@@ -186,7 +186,6 @@ class Parser {
 
         $lines = array_map(
             static function ($name, $version) use (&$lines_counter) {
-//                $lines_counter++;
                 return $lines_counter++ === 0 ? "$name@$version" : "\t$name@$version";
             },
             array_keys($packages),
