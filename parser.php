@@ -182,8 +182,13 @@ class Parser {
      */
     private function formatPackagesText(array $packages): string {
         ksort($packages);
+        $lines_counter = 0;
+
         $lines = array_map(
-            static fn($name, $version) => "\t$name@$version",
+            static function ($name, $version) use (&$lines_counter) {
+//                $lines_counter++;
+                return $lines_counter++ === 0 ? "$name@$version" : "\t$name@$version";
+            },
             array_keys($packages),
             $packages
         );
