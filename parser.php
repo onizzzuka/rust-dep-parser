@@ -4,13 +4,12 @@ require __DIR__ . '/vendor/autoload.php';
 
 use App\Parser\ParserFactory;
 
-const FILES_FOR_PARSE_DIR = __DIR__ . "/files_for_parse";
-const OUTPUT_DIR          = __DIR__ . "/output";
-const OUTPUT_FILE         = "packages.txt";
-
-const ALLOWED_FILE_EXTENSIONS = ['json', 'toml', 'lock'];
-
-Parser::run();
+(new Parser(
+    filesForParseDirName: __DIR__ . "/files_for_parse",
+    outputDirName: __DIR__ . "/output",
+    outputFileName: "packages.txt",
+    allowedFileExtensions: ['json', 'toml', 'lock']
+))->run();
 
 class Parser {
 
@@ -18,9 +17,15 @@ class Parser {
 
     private array $filesToProceedPool = [];
 
-    public static function run(): void {
-        $parser = new self();
-        $parser->process();
+    public function __construct(protected string $filesForParseDirName,
+                                protected string $outputDirName,
+                                protected string $outputFileName,
+                                protected array  $allowedFileExtensions
+    ) {
+    }
+
+    public function run(): void {
+        $this->process();
     }
 
     /**
@@ -46,45 +51,32 @@ class Parser {
      * and add a new instance of parser to the pool.
      */
     private function prepareFilesAndParsers(): void {
-        $directory = FILES_FOR_PARSE_DIR;
+        $directory = $this->filesForParseDirName;
 
         foreach ($this->getParseableFiles($directory) as $filename) {
             $extension = pathinfo($filename, PATHINFO_EXTENSION);
 
-            $this->addParserToPool($extension);
-            $this->addFileToProceedPool($directory, $filename, $extension);
+            if (!$this->isAllowedExtension($extension)) {
+                continue;
+            }
+
+            $this->parsersPool[$extension] ??= ParserFactory::createByExtension($extension);
+            $this->filesToProceedPool[]    = $directory . '/' . $filename;
         }
     }
 
     /**
-     * Adds a parser instance to the internal pool for the specified file extension.
+     * Check if a given file extension is allowed for parsing.
      *
-     * If no parser is currently stored for the given extension and the extension
-     * is listed in {@see ALLOWED_FILE_EXTENSIONS}, a new parser is created via
-     * {@see ParserFactory::createByExtension} and added to the pool.
+     * The extension is normalized to lower case and compared against
+     * the class constant `ALLOWED_FILE_EXTENSIONS`.
      *
-     * @param string $extension The file extension for which to add a parser.
+     * @param string $extension File extension to check.
      *
-     * @return void
+     * @return bool True if the extension is allowed, false otherwise.
      */
-    private function addParserToPool(string $extension): void {
-        if (!isset($this->parsersPool[$extension]) && in_array(strtolower($extension), ALLOWED_FILE_EXTENSIONS)) {
-            $this->parsersPool[$extension] = ParserFactory::createByExtension($extension);
-        }
-    }
-
-    /**
-     * Adds a file to the internal pool of files to be processed based on {@see ALLOWED_FILE_EXTENSIONS}.
-     *
-     * @param string $directory The directory path where the file resides.
-     * @param string $filename  The name of the file to add.
-     * @param string $extension The file extension, used for validation against allowed extensions.
-     */
-    private function addFileToProceedPool(string $directory, string $filename, string $extension): void {
-        if (in_array(strtolower($extension), ALLOWED_FILE_EXTENSIONS)) {
-            $this->filesToProceedPool[] = $directory . '/' . $filename;
-        }
-
+    private function isAllowedExtension(string $extension): bool {
+        return in_array(strtolower($extension), $this->allowedFileExtensions, TRUE);
     }
 
     /**
@@ -114,11 +106,13 @@ class Parser {
      */
     private function processFiles(): void {
         $packages = $this->parseFiles();
-        if (!empty($packages)) {
-            $this->ensureOutputDirectory();
-            $packagesText = $this->formatPackagesText($packages);
-            file_put_contents(OUTPUT_DIR . "/" . OUTPUT_FILE, $packagesText);
+
+        if (empty($packages)) {
+            return;
         }
+
+        $this->ensureOutputDirectory();
+        file_put_contents($this->outputDirName . "/" . $this->outputFileName, $this->formatPackagesText($packages));
     }
 
     /**
@@ -131,6 +125,7 @@ class Parser {
      */
     private function parseFiles(): array {
         $parsedItems = [];
+
         foreach ($this->filesToProceedPool as $file) {
             if (!file_exists($file)) {
                 $this->handleError(new RuntimeException("File not found: $file"));
@@ -138,13 +133,10 @@ class Parser {
             }
 
             try {
-                $content = file_get_contents($file);
-
                 $extension = pathinfo($file, PATHINFO_EXTENSION);
                 $parser    = $this->parsersPool[$extension];
-
-                $data  = $parser->parse($content);
-                $items = $parser->getItems($data);
+                $data      = $parser->parse(file_get_contents($file));
+                $items     = $parser->getItems($data);
 
                 if (is_array($items)) {
                     $parsedItems[] = $items;
@@ -165,8 +157,8 @@ class Parser {
      * @throws RuntimeException If the output directory cannot be created.
      */
     private function ensureOutputDirectory(): void {
-        if (!is_dir(OUTPUT_DIR) && !mkdir(OUTPUT_DIR, 0777, TRUE) && !is_dir(OUTPUT_DIR)) {
-            throw new RuntimeException(sprintf('Directory "%s" was not created', OUTPUT_DIR));
+        if (!is_dir($this->outputDirName) && !mkdir($this->outputDirName, 0777, TRUE) && !is_dir($this->outputDirName)) {
+            throw new RuntimeException(sprintf('Directory "%s" was not created', $this->outputDirName));
         }
     }
 
@@ -182,15 +174,12 @@ class Parser {
      */
     private function formatPackagesText(array $packages): string {
         ksort($packages);
-        $lines_counter = 0;
+        $lines = [];
 
-        $lines = array_map(
-            static function ($name, $version) use (&$lines_counter) {
-                return $lines_counter++ === 0 ? "$name@$version" : "\t$name@$version";
-            },
-            array_keys($packages),
-            $packages
-        );
+        foreach ($packages as $name => $version) {
+            $lines[] = empty($lines) ? "$name@$version" : "\t$name@$version";
+
+        }
 
         return 'CRATES="' . implode("\n", $lines) . "\n\"";
     }
