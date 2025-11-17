@@ -2,8 +2,6 @@
 
 namespace App;
 
-//require __DIR__ . '/../vendor/autoload.php';
-
 use App\Parser\ParserFactory;
 use Exception;
 use JsonException;
