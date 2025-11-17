@@ -27,7 +27,7 @@ Files to parse should be placed in the `files_for_parse` directory. Processed ou
 1. Place dependency files into `files_for_parse`.
 2. Run the parser:
 
-   php parser.php
+   php parse.php
 
 3. Check results in the `output` directory.
 

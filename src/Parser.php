@@ -1,17 +1,18 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+namespace App;
+
+//require __DIR__ . '/../vendor/autoload.php';
 
 use App\Parser\ParserFactory;
-
-(new Parser(
-    filesForParseDirName: __DIR__ . "/files_for_parse",
-    outputDirName: __DIR__ . "/output",
-    outputFileName: "packages.txt",
-    allowedFileExtensions: ['json', 'toml', 'lock']
-))->run();
+use Exception;
+use JsonException;
+use RuntimeException;
+use Throwable;
 
 class Parser {
+
+    private const ALLOWED_FILE_EXTENSIONS = ['json', 'toml', 'lock'];
 
     private array $parsersPool = [];
 
@@ -19,8 +20,7 @@ class Parser {
 
     public function __construct(protected string $filesForParseDirName,
                                 protected string $outputDirName,
-                                protected string $outputFileName,
-                                protected array  $allowedFileExtensions
+                                protected string $outputFileName
     ) {
     }
 
@@ -45,7 +45,7 @@ class Parser {
     }
 
     /**
-     * Fill a list of files and the parsers pool.
+     * Fill a list with files and the parsers pool.
      * The method scans a specified directory for parseable files,
      * determines the appropriate parser for each file based on its extension,
      * and add a new instance of parser to the pool.
@@ -76,7 +76,7 @@ class Parser {
      * @return bool True if the extension is allowed, false otherwise.
      */
     private function isAllowedExtension(string $extension): bool {
-        return in_array(strtolower($extension), $this->allowedFileExtensions, TRUE);
+        return in_array(strtolower($extension), self::ALLOWED_FILE_EXTENSIONS, TRUE);
     }
 
     /**
