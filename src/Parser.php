@@ -10,7 +10,7 @@ use Throwable;
 
 class Parser {
 
-    private const ALLOWED_FILE_EXTENSIONS = ['json', 'toml', 'lock'];
+    private const array ALLOWED_FILE_EXTENSIONS = ['json', 'toml', 'lock'];
 
     private array $parsersPool = [];
 
@@ -133,6 +133,12 @@ class Parser {
             try {
                 $extension = pathinfo($file, PATHINFO_EXTENSION);
                 $parser    = $this->parsersPool[$extension];
+
+                if ($parser === NULL) {
+                    $this->handleError(new RuntimeException("No parser found for file: $file"));
+                    continue;
+                }
+
                 $data      = $parser->parse(file_get_contents($file));
                 $items     = $parser->getItems($data);
 
