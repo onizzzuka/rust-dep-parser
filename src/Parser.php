@@ -139,8 +139,8 @@ class Parser {
                     continue;
                 }
 
-                $data      = $parser->parse(file_get_contents($file));
-                $items     = $parser->getItems($data);
+                $data  = $parser->parse(file_get_contents($file));
+                $items = $parser->getItems($data);
 
                 if (is_array($items)) {
                     $parsedItems[] = $items;
